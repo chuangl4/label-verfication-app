@@ -43,25 +43,6 @@ An AI-powered web application that simulates the TTB (Alcohol and Tobacco Tax an
 - **User-Friendly Results**: Clear success/error feedback with specific mismatch details
 - **Responsive Design**: Works on desktop and mobile devices
 
-## 🛠️ Tech Stack
-
-### Frontend
-- **Framework**: Next.js 16 (Pages Router)
-- **Language**: TypeScript
-- **Styling**: Tailwind CSS
-- **Form Management**: React Hook Form
-- **Image Upload**: react-dropzone
-
-### Backend
-- **API**: Next.js API Routes (serverless functions)
-- **Vision AI**: Claude 3.5 Haiku Vision API (Anthropic)
-- **File Handling**: formidable
-- **Multi-Image Processing**: Supports up to 2 label images per verification
-
-### Deployment
-- **Platform**: Vercel
-- **Runtime**: Node.js
-
 ## 🚀 Live Demo
 
 **Deployed Application**: https://label-verfication-app.vercel.app/
@@ -83,6 +64,26 @@ An AI-powered web application that simulates the TTB (Alcohol and Tobacco Tax an
 **Requirements to Use**:
 - The deployed app requires a valid Anthropic API key configured on the server
 - If you encounter errors, the API key may need to be renewed or configured
+
+## 🛠️ Tech Stack
+
+### Frontend
+- **Framework**: Next.js 16 (Pages Router)
+- **Language**: TypeScript
+- **Styling**: Tailwind CSS
+- **Form Management**: React Hook Form
+- **Image Upload**: react-dropzone
+
+### Backend
+- **API**: Next.js API Routes (serverless functions)
+- **Vision AI**: Claude 3.5 Haiku Vision API (Anthropic)
+- **File Handling**: formidable
+- **Multi-Image Processing**: Supports up to 2 label images per verification
+
+### Deployment
+- **Platform**: Vercel
+- **Runtime**: Node.js
+
 
 ## 📋 Prerequisites
 
