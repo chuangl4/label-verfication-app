@@ -2,6 +2,10 @@
 
 An AI-powered web application that simulates the TTB (Alcohol and Tobacco Tax and Trade Bureau) label approval process. The app uses OCR technology to extract text from alcohol beverage labels and verifies that the information matches the submitted application form.
 
+## 🚀 Live Demo
+
+**Deployed Application**: https://label-verfication-app.vercel.app/
+
 ## 🌟 Features
 
 - **Smart Form Input**: Easy-to-use form for entering product information (brand name, product type, alcohol content, net contents)
@@ -17,10 +21,6 @@ An AI-powered web application that simulates the TTB (Alcohol and Tobacco Tax an
   - Government Warning Statement
 - **User-Friendly Results**: Clear success/error feedback with specific mismatch details
 - **Responsive Design**: Works on desktop and mobile devices
-
-## 🚀 Live Demo
-
-**Deployed Application**: [URL will be added after deployment]
 
 ## 🛠️ Tech Stack
 
