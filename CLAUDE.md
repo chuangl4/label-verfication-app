@@ -39,12 +39,36 @@ This is an AI-powered alcohol label verification application that simulates the 
 ## Technical Constraints
 
 ### Technology Choices (Implemented)
+
+**Core Stack**:
 - **Frontend**: Next.js 16 (Pages Router) + TypeScript + Tailwind CSS
 - **Backend**: Next.js API Routes (serverless)
 - **Vision AI**: Claude 3.5 Haiku Vision API (Anthropic) - single method, no fallback
 - **Multi-Image Support**: Up to 2 images per verification (front + back labels)
 - **Deployment**: Vercel (serverless)
 - **Database**: Not required - stateless operation
+
+**Why Next.js + TypeScript?**
+
+- **Next.js Benefits**:
+  - Unified full-stack development (frontend + API routes in one codebase)
+  - Zero configuration (webpack, babel, routing all built-in)
+  - Excellent Vercel deployment integration
+  - Fast development with Hot Reload
+  - Production-ready optimizations out-of-the-box
+
+- **TypeScript Benefits**:
+  - Type safety catches errors at compile time
+  - Shared types between frontend and backend
+  - Better IDE support (autocomplete, jump-to-definition)
+  - Self-documenting code with interfaces
+  - Safer refactoring as codebase grows
+
+- **Combined Value**:
+  - Fastest time to production for full-stack apps
+  - Single codebase for frontend, backend, and types
+  - Industry-standard tooling with excellent documentation
+  - Long-term maintainability
 
 ### Scope Considerations
 This is designed as a ~1 day project. Prioritize:

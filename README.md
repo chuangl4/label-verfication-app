@@ -2,6 +2,31 @@
 
 An AI-powered web application that simulates the TTB (Alcohol and Tobacco Tax and Trade Bureau) label approval process. The app uses Claude Vision API to extract text from alcohol beverage labels and verifies that the information matches the submitted application form.
 
+## 📑 Table of Contents
+
+- [🚀 Live Demo](#-live-demo)
+- [🌟 Features](#-features)
+- [🛠️ Tech Stack](#️-tech-stack)
+- [📋 Prerequisites](#-prerequisites)
+- [🔧 Installation & Setup](#-installation--setup)
+- [📖 Usage](#-usage)
+- [🏗️ Project Structure](#️-project-structure)
+- [🔍 How It Works](#-how-it-works)
+- [🎯 Key Design Decisions](#-key-design-decisions)
+  - [Claude Vision API](#claude-vision-api-for-label-extraction)
+  - [Next.js + TypeScript](#nextjs--typescript-as-foundation)
+  - [Supporting Stack](#supporting-technology-stack)
+- [📐 Assumptions & Design Decisions](#-assumptions--design-decisions)
+- [📊 API Documentation](#-api-documentation)
+- [🧪 Testing](#-testing)
+- [🚢 Deployment](#-deployment)
+- [⚠️ Known Limitations](#️-known-limitations)
+- [🔮 Future Enhancements](#-future-enhancements)
+- [📝 Development Approach](#-development-approach)
+- [📄 License](#-license)
+- [🙋 Support](#-support)
+- [👏 Acknowledgments](#-acknowledgments)
+
 ## 🚀 Live Demo
 
 **Deployed Application**: https://label-verfication-app.vercel.app/
@@ -211,6 +236,8 @@ Return success/failure with field details
 
 ## 🎯 Key Design Decisions
 
+This section documents the reasoning behind major technology choices, focusing on the three critical decisions that shaped the project architecture.
+
 ### Claude Vision API for Label Extraction
 
 **Architecture**: Claude 3.5 Haiku Vision API only
@@ -257,6 +284,86 @@ Return success/failure with field details
    - Approximately $0.001-0.003 per image
    - Budget ~300-1000 verifications per dollar
    - Cost justified by superior accuracy and user experience
+
+### Next.js + TypeScript as Foundation
+
+**Choice**: Next.js 16 (Pages Router) with TypeScript
+
+#### Why Next.js?
+
+✅ **Unified Full-Stack Development**:
+- Single codebase for frontend and backend (API Routes)
+- No need for separate Express/Fastify server
+- Shared types between client and server via TypeScript
+- Faster than setting up React + Node.js separately
+
+✅ **Zero Configuration**:
+- No webpack, babel, or routing setup needed
+- TypeScript support out-of-the-box
+- Built-in optimizations (code splitting, image optimization)
+- One-click Vercel deployment
+
+✅ **Time Efficiency**:
+- Perfect for time-constrained project (one-day scope)
+- Fast development with Hot Reload
+- Industry standard with excellent documentation
+
+#### Why TypeScript?
+
+✅ **Type Safety**:
+- Catch errors at compile time, not runtime
+- Shared types ensure API contracts between frontend/backend
+
+```typescript
+interface FormData {
+  brandName: string;        // Compiler ensures correct types
+  alcoholContent: number;   // Can't accidentally pass string
+}
+```
+
+✅ **Better Developer Experience**:
+- IntelliSense autocomplete in IDE
+- Jump to definition
+- Self-documenting code with interfaces
+
+✅ **Maintainability**:
+- Refactoring is safer with type checking
+- Changes to data structures caught immediately
+- Reduces technical debt as code grows
+
+**Decision Justification**: For a full-stack application with strict type requirements (form validation, API contracts), Next.js + TypeScript provides the fastest time to production with the best developer experience and long-term maintainability.
+
+### Supporting Technology Stack
+
+**Form Management**: React Hook Form v7
+- Performance-optimized (minimal re-renders)
+- Simple API with built-in validation
+- 9KB bundle size
+
+**Image Upload**: react-dropzone v14
+- Drag-and-drop interface (bonus feature)
+- Multiple file support for front + back labels
+- Industry standard with 24k+ stars
+
+**Styling**: Tailwind CSS v4
+- Rapid development with utility-first approach
+- Built-in design system for consistency
+- Automatic CSS purging for small production bundle
+
+**File Handling**: formidable v3
+- Multipart form data parsing for Next.js API routes
+- Multiple file upload support
+- Battle-tested (10+ years)
+
+**Testing**: Jest + React Testing Library + ts-jest
+- Industry standard testing stack
+- 149 tests (122 unit + 27 integration + 12 component)
+- Excellent TypeScript integration
+
+**Deployment**: Vercel
+- Optimized for Next.js
+- One-click deployment
+- Automatic deploys from Git
 
 ### Error Handling
 - **UX**: Show all errors, not just first one
