@@ -21,6 +21,19 @@ export interface OCRResult {
 }
 
 /**
+ * OCR extraction result for multiple images
+ */
+export interface MultiImageOCRResult {
+  images: Array<{
+    text: string;
+    confidence: number;
+    imageIndex: number;
+  }>;
+  combinedText: string; // All text concatenated
+  averageConfidence: number; // Average confidence across all images
+}
+
+/**
  * Individual field verification result
  */
 export interface FieldResult {
@@ -63,5 +76,6 @@ export interface VerifyResponse {
   success: boolean;
   fields: VerificationResult['fields'];
   method?: 'vision' | 'ocr'; // Which extraction method was used
+  imageCount?: number; // Number of images processed
   error?: string; // Error message if processing failed
 }

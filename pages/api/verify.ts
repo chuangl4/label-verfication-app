@@ -2,7 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import formidable, { File } from 'formidable';
 import fs from 'fs';
 import { verifyLabelWithVision } from '@/lib/visionExtraction';
-import { extractTextFromImage } from '@/lib/ocr';
+import { extractTextFromImage, extractTextFromMultipleImages } from '@/lib/ocr';
 import { verifyLabel } from '@/lib/verification';
 import { VerifyResponse } from '@/types';
 
@@ -86,36 +86,62 @@ export default async function handler(
       });
     }
 
-    // Get uploaded image file
-    const imageFile = Array.isArray(files.image) ? files.image[0] : files.image;
+    // Get uploaded image files (supports multiple images)
+    const imageFiles = files.images;
 
-    if (!imageFile) {
+    if (!imageFiles) {
       return res.status(400).json({
         success: false,
         fields: {} as any,
-        error: 'No image file uploaded',
+        error: 'No image files uploaded',
       });
     }
 
-    // Validate file type
+    // Convert to array (formidable returns single file or array)
+    const imageArray: File[] = Array.isArray(imageFiles) ? imageFiles : [imageFiles];
+
+    // Validate image count (1-2 images)
+    if (imageArray.length === 0) {
+      return res.status(400).json({
+        success: false,
+        fields: {} as any,
+        error: 'At least one image is required',
+      });
+    }
+
+    if (imageArray.length > 2) {
+      return res.status(400).json({
+        success: false,
+        fields: {} as any,
+        error: 'Maximum 2 images allowed',
+      });
+    }
+
+    // Validate file types for all images
     const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
-    if (!validTypes.includes(imageFile.mimetype || '')) {
-      return res.status(400).json({
-        success: false,
-        fields: {} as any,
-        error: 'Invalid file type. Please upload a JPEG, PNG, or WebP image.',
-      });
+    for (const imageFile of imageArray) {
+      if (!validTypes.includes(imageFile.mimetype || '')) {
+        return res.status(400).json({
+          success: false,
+          fields: {} as any,
+          error: 'Invalid file type. All images must be JPEG, PNG, or WebP.',
+        });
+      }
     }
 
-    // Read image file
-    const imageBuffer = fs.readFileSync(imageFile.filepath);
+    // Read all image files into buffers with their MIME types
+    const imageBuffers = imageArray.map(file => fs.readFileSync(file.filepath));
+    const imagesWithTypes = imageArray.map((file, index) => ({
+      buffer: imageBuffers[index],
+      mimeType: file.mimetype || 'image/jpeg',
+    }));
 
     let verificationResult;
     let usedMethod: 'vision' | 'ocr' = 'vision';
 
     try {
-      // Try Claude Vision API first
-      console.log('Attempting verification with Claude Vision API...');
+      // Try Claude Vision API first (supports multiple images)
+      console.log(`Attempting verification with Claude Vision API (${imageBuffers.length} image${imageBuffers.length > 1 ? 's' : ''})...`);
       verificationResult = await verifyLabelWithVision(
         {
           brandName,
@@ -123,7 +149,7 @@ export default async function handler(
           alcoholContent,
           netContents,
         },
-        imageBuffer
+        imagesWithTypes
       );
       console.log('✓ Vision API verification completed successfully');
     } catch (visionError) {
@@ -132,12 +158,24 @@ export default async function handler(
       usedMethod = 'ocr';
 
       try {
-        console.log('Starting OCR-based label verification...');
-        const ocrResult = await extractTextFromImage(imageBuffer);
-        console.log('OCR completed. Confidence:', ocrResult.confidence);
+        console.log(`Starting OCR-based label verification (${imageBuffers.length} image${imageBuffers.length > 1 ? 's' : ''})...`);
 
-        if (!ocrResult.text || ocrResult.text.trim().length === 0) {
-          throw new Error('Could not read text from the label image');
+        let ocrText: string;
+
+        if (imageBuffers.length === 1) {
+          // Single image - use existing function
+          const ocrResult = await extractTextFromImage(imageBuffers[0]);
+          ocrText = ocrResult.text;
+          console.log('OCR completed. Confidence:', ocrResult.confidence);
+        } else {
+          // Multiple images - use new function
+          const multiOcrResult = await extractTextFromMultipleImages(imageBuffers);
+          ocrText = multiOcrResult.combinedText;
+          console.log(`OCR completed for ${multiOcrResult.images.length} images. Average confidence:`, multiOcrResult.averageConfidence);
+        }
+
+        if (!ocrText || ocrText.trim().length === 0) {
+          throw new Error('Could not read text from the label images');
         }
 
         verificationResult = verifyLabel(
@@ -147,24 +185,25 @@ export default async function handler(
             alcoholContent,
             netContents,
           },
-          ocrResult.text
+          ocrText
         );
         console.log('✓ OCR verification completed successfully');
       } catch (ocrError) {
         console.error('Both Vision API and OCR failed:', ocrError);
-        throw new Error('Failed to process label image. Please try again with a clearer image.');
+        throw new Error('Failed to process label images. Please try again with clearer images.');
       }
     }
 
-    // Clean up uploaded file
-    fs.unlinkSync(imageFile.filepath);
+    // Clean up all uploaded files
+    imageArray.forEach(file => fs.unlinkSync(file.filepath));
 
-    // Return results with method used
-    console.log(`Verification completed using: ${usedMethod}`);
+    // Return results with method used and image count
+    console.log(`Verification completed using: ${usedMethod} (${imageBuffers.length} image${imageBuffers.length > 1 ? 's' : ''})`);
     return res.status(200).json({
       success: verificationResult.success,
       fields: verificationResult.fields,
-      method: usedMethod, // Include which method was used for transparency
+      method: usedMethod,
+      imageCount: imageBuffers.length,
     });
   } catch (error) {
     console.error('Verification error:', error);

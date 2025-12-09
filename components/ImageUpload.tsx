@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
 
 interface ImageUploadProps {
-  onImageSelected: (file: File) => void;
+  onImageSelected: (files: File[]) => void;
   disabled?: boolean;
 }
 
@@ -10,7 +10,7 @@ export default function ImageUpload({ onImageSelected, disabled }: ImageUploadPr
   const onDrop = useCallback(
     (acceptedFiles: File[]) => {
       if (acceptedFiles.length > 0) {
-        onImageSelected(acceptedFiles[0]);
+        onImageSelected(acceptedFiles);
       }
     },
     [onImageSelected]
@@ -23,7 +23,8 @@ export default function ImageUpload({ onImageSelected, disabled }: ImageUploadPr
       'image/png': ['.png'],
       'image/webp': ['.webp'],
     },
-    multiple: false,
+    multiple: true,
+    maxFiles: 2,
     disabled,
   });
 
@@ -64,7 +65,7 @@ export default function ImageUpload({ onImageSelected, disabled }: ImageUploadPr
             <p className="text-gray-600">
               <span className="font-medium text-blue-600">Click to upload</span> or drag and drop
             </p>
-            <p className="text-sm text-gray-500">JPEG, PNG, or WebP (max 10MB)</p>
+            <p className="text-sm text-gray-500">Up to 2 images (JPEG, PNG, or WebP, max 10MB each)</p>
           </>
         )}
       </div>

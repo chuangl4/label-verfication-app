@@ -3,10 +3,11 @@ import { FormData, VerificationResult, FieldResult } from '@/types';
 
 /**
  * Extract label information using Claude Vision API
+ * Supports multiple images (e.g., front and back labels)
  * Returns structured data with all required fields
  */
 export async function extractLabelDataWithVision(
-  imageBuffer: Buffer
+  images: Array<{ buffer: Buffer; mimeType: string }>
 ): Promise<{
   brandName: string | null;
   productType: string | null;
@@ -22,27 +23,28 @@ export async function extractLabelDataWithVision(
 
   const client = new Anthropic({ apiKey });
 
-  // Convert buffer to base64
-  const base64Image = imageBuffer.toString('base64');
+  // Build content array with all images
+  const content: Anthropic.MessageParam['content'] = [];
 
-  const message = await client.messages.create({
-    model: 'claude-3-5-haiku-20241022',
-    max_tokens: 1024,
-    messages: [
-      {
-        role: 'user',
-        content: [
-          {
-            type: 'image',
-            source: {
-              type: 'base64',
-              media_type: 'image/png',
-              data: base64Image,
-            },
-          },
-          {
-            type: 'text',
-            text: `Analyze this alcohol beverage label image and extract the following information. Return your response as a JSON object with these exact fields:
+  // Add all images to the content array
+  images.forEach(({ buffer, mimeType }) => {
+    // Convert mime type to Anthropic format (image/jpeg -> image/jpeg, image/png -> image/png, etc.)
+    const mediaType = mimeType === 'image/jpg' ? 'image/jpeg' : mimeType;
+
+    (content as Array<any>).push({
+      type: 'image',
+      source: {
+        type: 'base64',
+        media_type: mediaType,
+        data: buffer.toString('base64'),
+      },
+    });
+  });
+
+  // Add the text prompt
+  (content as Array<any>).push({
+    type: 'text',
+    text: `Analyze these alcohol beverage label images (there may be multiple images showing front and back of the label). Extract the following information by looking at ALL images provided. Return your response as a JSON object with these exact fields:
 
 {
   "brandName": "the brand name on the label",
@@ -52,10 +54,17 @@ export async function extractLabelDataWithVision(
   "hasGovernmentWarning": true or false (whether a government warning is present)
 }
 
-If any field cannot be found on the label, use null for that field (except hasGovernmentWarning which should be false).
+If any field cannot be found across ANY of the label images, use null for that field (except hasGovernmentWarning which should be false).
 Return ONLY the JSON object, no additional text.`,
-          },
-        ],
+  });
+
+  const message = await client.messages.create({
+    model: 'claude-3-5-haiku-20241022',
+    max_tokens: 1024,
+    messages: [
+      {
+        role: 'user',
+        content: content,
       },
     ],
   });
@@ -90,14 +99,15 @@ Return ONLY the JSON object, no additional text.`,
 
 /**
  * Verify label using Claude Vision API
+ * Supports multiple images (e.g., front and back labels)
  * Compares form data against extracted label data
  */
 export async function verifyLabelWithVision(
   formData: FormData,
-  imageBuffer: Buffer
+  images: Array<{ buffer: Buffer; mimeType: string }>
 ): Promise<VerificationResult> {
-  // Extract data from label using vision
-  const extractedData = await extractLabelDataWithVision(imageBuffer);
+  // Extract data from all label images using vision
+  const extractedData = await extractLabelDataWithVision(images);
 
   // Verify each field
   const fields = {

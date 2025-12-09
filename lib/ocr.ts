@@ -1,5 +1,5 @@
 import Tesseract from 'tesseract.js';
-import { OCRResult } from '@/types';
+import { OCRResult, MultiImageOCRResult } from '@/types';
 
 /**
  * Extract text from an image using Tesseract OCR
@@ -27,6 +27,56 @@ export async function extractTextFromImage(
     console.error('OCR Error:', error);
     throw new Error('Failed to extract text from image. Please try a clearer image.');
   }
+}
+
+/**
+ * Extract text from multiple images using Tesseract OCR
+ * Processes each image individually and combines results
+ * @param imageBuffers - Array of image buffers
+ * @returns Combined OCR result with text from all images
+ */
+export async function extractTextFromMultipleImages(
+  imageBuffers: Buffer[]
+): Promise<MultiImageOCRResult> {
+  const results: Array<{text: string; confidence: number; imageIndex: number}> = [];
+
+  for (let i = 0; i < imageBuffers.length; i++) {
+    try {
+      console.log(`Processing image ${i + 1} of ${imageBuffers.length}...`);
+      const result = await extractTextFromImage(imageBuffers[i]);
+      results.push({
+        text: result.text,
+        confidence: result.confidence,
+        imageIndex: i,
+      });
+    } catch (error) {
+      console.error(`Failed to process image ${i + 1}:`, error);
+      // Continue processing other images even if one fails
+      results.push({
+        text: '',
+        confidence: 0,
+        imageIndex: i,
+      });
+    }
+  }
+
+  // Combine all text with separators
+  const combinedText = results
+    .filter(r => r.text.trim().length > 0)
+    .map(r => r.text)
+    .join('\n\n--- IMAGE SEPARATOR ---\n\n');
+
+  // Calculate average confidence (exclude failed images)
+  const validResults = results.filter(r => r.confidence > 0);
+  const averageConfidence = validResults.length > 0
+    ? validResults.reduce((sum, r) => sum + r.confidence, 0) / validResults.length
+    : 0;
+
+  return {
+    images: results,
+    combinedText,
+    averageConfidence,
+  };
 }
 
 /**

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useRouter } from 'next/router';
 import ImageUpload from './ImageUpload';
-import ImagePreview from './ImagePreview';
+import MultiImagePreview from './MultiImagePreview';
 import FieldError from './FieldError';
 import { VerifyResponse } from '@/types';
 
@@ -15,7 +15,7 @@ interface FormInputs {
 
 export default function VerificationForm() {
   const router = useRouter();
-  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [selectedImages, setSelectedImages] = useState<File[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [apiErrors, setApiErrors] = useState<VerifyResponse | null>(null);
   const [generalError, setGeneralError] = useState<string | null>(null);
@@ -27,9 +27,14 @@ export default function VerificationForm() {
   } = useForm<FormInputs>();
 
   const onSubmit = async (data: FormInputs) => {
-    // Validate image is selected
-    if (!selectedImage) {
-      setGeneralError('Please upload a label image');
+    // Validate images are selected
+    if (!selectedImages || selectedImages.length === 0) {
+      setGeneralError('Please upload at least one label image');
+      return;
+    }
+
+    if (selectedImages.length > 2) {
+      setGeneralError('Maximum 2 images allowed');
       return;
     }
 
@@ -40,7 +45,12 @@ export default function VerificationForm() {
     try {
       // Create FormData for multipart upload
       const formData = new FormData();
-      formData.append('image', selectedImage);
+
+      // Append all images
+      selectedImages.forEach((image) => {
+        formData.append('images', image);
+      });
+
       formData.append('brandName', data.brandName);
       formData.append('productType', data.productType);
       formData.append('alcoholContent', data.alcoholContent);
@@ -241,15 +251,20 @@ export default function VerificationForm() {
       <div className="space-y-4">
         <div className="border-b border-gray-200 pb-3">
           <h2 className="text-base font-semibold text-gray-900">
-            Label Image <span className="text-red-500">*</span>
+            Label Images <span className="text-red-500">*</span>
           </h2>
-          <p className="text-sm text-gray-500 mt-1">Upload a clear photo of your alcohol beverage label</p>
+          <p className="text-sm text-gray-500 mt-1">
+            Upload clear photos of your label (front and back if applicable, up to 2 images)
+          </p>
         </div>
 
-        {!selectedImage ? (
-          <ImageUpload onImageSelected={setSelectedImage} disabled={isSubmitting} />
+        {selectedImages.length === 0 ? (
+          <ImageUpload onImageSelected={setSelectedImages} disabled={isSubmitting} />
         ) : (
-          <ImagePreview file={selectedImage} onRemove={() => setSelectedImage(null)} />
+          <MultiImagePreview
+            files={selectedImages}
+            onRemove={(index) => setSelectedImages(prev => prev.filter((_, i) => i !== index))}
+          />
         )}
       </div>
 
@@ -273,10 +288,10 @@ export default function VerificationForm() {
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
               </svg>
-              Verifying Label...
+              Verifying Labels...
             </span>
           ) : (
-            'Verify Label'
+            'Verify Labels'
           )}
         </button>
       </div>
