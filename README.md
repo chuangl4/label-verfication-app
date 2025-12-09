@@ -4,8 +4,8 @@ An AI-powered web application that simulates the TTB (Alcohol and Tobacco Tax an
 
 ## 📑 Table of Contents
 
-- [🚀 Live Demo](#-live-demo)
 - [🌟 Features](#-features)
+- [🚀 Live Demo](#-live-demo)
 - [🛠️ Tech Stack](#️-tech-stack)
 - [📋 Prerequisites](#-prerequisites)
 - [🔧 Installation & Setup](#-installation--setup)
@@ -26,28 +26,6 @@ An AI-powered web application that simulates the TTB (Alcohol and Tobacco Tax an
 - [📄 License](#-license)
 - [🙋 Support](#-support)
 - [👏 Acknowledgments](#-acknowledgments)
-
-## 🚀 Live Demo
-
-**Deployed Application**: https://label-verfication-app.vercel.app/
-
-**Deployment Status**:
-- ✅ **Live and Active**: Application is deployed and accessible
-- 🏗️ **Platform**: Vercel (serverless)
-- 🔄 **Auto-Deploy**: Automatic deployment on push to `main` branch
-- 🔑 **Environment**: `ANTHROPIC_API_KEY` configured in Vercel environment variables
-- 📊 **Monitoring**: Check Vercel dashboard for deployment logs and status
-
-**Requirements to Use**:
-- The deployed app requires a valid Anthropic API key configured on the server
-- If you encounter errors, the API key may need to be renewed or configured
-
-**Testing with Sample Images**:
-- Sample test images are available in the `test-images/` directory for trying the application:
-  - **Multi-image labels**: Use `case-1-front.jpeg` + `case-1-back.jpeg` or `case-3-front.jpeg` + `case-3-back.jpeg` to test front and back label processing
-  - **Image quality comparison**: Compare `case-2.jpeg` (clear) vs `case-2-blurred.jpg` (blurred) to see Vision API performance
-  - **Complex text layouts**: Try `case-2.jpeg` which contains both horizontal and vertical text
-  - **Beer labels**: Use `case-4.jpeg` for testing beer label verification
 
 ## 🌟 Features
 
@@ -83,6 +61,28 @@ An AI-powered web application that simulates the TTB (Alcohol and Tobacco Tax an
 ### Deployment
 - **Platform**: Vercel
 - **Runtime**: Node.js
+
+## 🚀 Live Demo
+
+**Deployed Application**: https://label-verfication-app.vercel.app/
+
+**Testing with Sample Images**:
+- Sample test images are available in the `test-images/` directory for trying the application:
+  - **Multi-image labels**: Use `case-1-front.jpeg` + `case-1-back.jpeg` or `case-3-front.jpeg` + `case-3-back.jpeg` to test front and back label processing
+  - **Image quality comparison**: Compare `case-2.jpeg` (clear) vs `case-2-blurred.jpg` (blurred) to see Vision API performance
+  - **Complex text layouts**: Try `case-2.jpeg` which contains both horizontal and vertical text
+  - **Beer labels**: Use `case-4.jpeg` for testing beer label verification
+
+**Deployment Status**:
+- ✅ **Live and Active**: Application is deployed and accessible
+- 🏗️ **Platform**: Vercel (serverless)
+- 🔄 **Auto-Deploy**: Automatic deployment on push to `main` branch
+- 🔑 **Environment**: `ANTHROPIC_API_KEY` configured in Vercel environment variables
+- 📊 **Monitoring**: Check Vercel dashboard for deployment logs and status
+
+**Requirements to Use**:
+- The deployed app requires a valid Anthropic API key configured on the server
+- If you encounter errors, the API key may need to be renewed or configured
 
 ## 📋 Prerequisites
 
