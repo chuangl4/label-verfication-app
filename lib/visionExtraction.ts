@@ -124,8 +124,7 @@ export async function verifyLabelWithVision(
       formData.alcoholContent,
       extractedData.alcoholContent
     ),
-    netContents: verifyField(
-      'Net contents',
+    netContents: verifyNetContentsField(
       formData.netContents,
       extractedData.netContents
     ),
@@ -291,6 +290,103 @@ function verifyAlcoholField(
     found: `${found}%`,
     error: `Alcohol content mismatch: Expected ${expected}%, found ${found}%`,
   };
+}
+
+/**
+ * Verify net contents field with space-insensitive matching
+ * Handles cases like "750ML" vs "750 ML" by normalizing spaces between numbers and units
+ */
+function verifyNetContentsField(
+  expected: string,
+  found: string | null
+): FieldResult {
+  if (!found) {
+    return {
+      matched: false,
+      expected,
+      found: null,
+      error: 'Net contents not found on label',
+    };
+  }
+
+  // Normalize both strings: lowercase, collapse spaces, remove spaces between numbers and units
+  const normalizeVolume = (str: string): string => {
+    return str
+      .toLowerCase()
+      .trim()
+      .replace(/\s+/g, ' ')  // Collapse multiple spaces
+      .replace(/(\d+)\s*(ml|l|oz|gal)/gi, '$1$2')  // Remove space between number and unit
+      .replace(/milliliters?/gi, 'ml')
+      .replace(/liters?|litres?/gi, 'l')
+      .replace(/fl\.?\s*oz/gi, 'floz')
+      .replace(/ounces?/gi, 'oz')
+      .replace(/\s+/g, '');  // Remove all remaining spaces
+  };
+
+  const normalizedExpected = normalizeVolume(expected);
+  const normalizedFound = normalizeVolume(found);
+
+  // Check for exact match after normalization
+  if (normalizedExpected === normalizedFound) {
+    return {
+      matched: true,
+      expected,
+      found,
+      similarity: 100,
+    };
+  }
+
+  // Check if they're similar enough (handles minor variations)
+  const similarity = (1 - (levenshteinDistance(normalizedExpected, normalizedFound) / Math.max(normalizedExpected.length, normalizedFound.length))) * 100;
+
+  if (similarity >= 80) {
+    return {
+      matched: true,
+      expected,
+      found,
+      similarity: Math.round(similarity),
+    };
+  }
+
+  return {
+    matched: false,
+    expected,
+    found,
+    error: `Net contents mismatch: Expected "${expected}", found "${found}"`,
+  };
+}
+
+/**
+ * Simple Levenshtein distance implementation
+ */
+function levenshteinDistance(str1: string, str2: string): number {
+  const len1 = str1.length;
+  const len2 = str2.length;
+  const matrix: number[][] = [];
+
+  for (let i = 0; i <= len1; i++) {
+    matrix[i] = [i];
+  }
+
+  for (let j = 0; j <= len2; j++) {
+    matrix[0][j] = j;
+  }
+
+  for (let i = 1; i <= len1; i++) {
+    for (let j = 1; j <= len2; j++) {
+      if (str1[i - 1] === str2[j - 1]) {
+        matrix[i][j] = matrix[i - 1][j - 1];
+      } else {
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j - 1] + 1,
+          matrix[i][j - 1] + 1,
+          matrix[i - 1][j] + 1
+        );
+      }
+    }
+  }
+
+  return matrix[len1][len2];
 }
 
 /**
