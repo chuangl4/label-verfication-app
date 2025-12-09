@@ -62,5 +62,6 @@ export interface VerifyRequest {
 export interface VerifyResponse {
   success: boolean;
   fields: VerificationResult['fields'];
+  method?: 'vision' | 'ocr'; // Which extraction method was used
   error?: string; // Error message if processing failed
 }

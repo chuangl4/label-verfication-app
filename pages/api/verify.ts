@@ -111,7 +111,7 @@ export default async function handler(
     const imageBuffer = fs.readFileSync(imageFile.filepath);
 
     let verificationResult;
-    let usedMethod = 'vision';
+    let usedMethod: 'vision' | 'ocr' = 'vision';
 
     try {
       // Try Claude Vision API first
