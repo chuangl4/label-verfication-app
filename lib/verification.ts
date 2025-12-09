@@ -8,6 +8,7 @@ import {
   fuzzyMatch,
   FUZZY_MATCH_THRESHOLD,
 } from './textMatching';
+import { classifyProductType, categoriesMatch } from './productTypeClassifier';
 
 /**
  * Verify brand name against OCR text
@@ -39,31 +40,84 @@ export function verifyBrandName(
 }
 
 /**
- * Verify product type/class against OCR text
+ * Verify product type/class against OCR text using TTB category classification
+ * The form value should be one of: Wine, Distilled Spirits, or Malt Beverage
  */
 export function verifyProductType(
-  formValue: string,
+  expectedCategory: string,
   ocrText: string
 ): FieldResult {
-  const match = findBestMatch(formValue, ocrText);
+  // Try to find the product type description in OCR text
+  const match = findBestMatch(expectedCategory, ocrText);
 
+  // If we find a fuzzy match for the category itself (e.g., "Wine" in text), that's good
   if (match && match.score >= FUZZY_MATCH_THRESHOLD) {
     return {
       matched: true,
-      expected: formValue,
+      expected: expectedCategory,
       found: match.match,
       similarity: match.score,
     };
   }
 
+  // Otherwise, try to classify what we found in the OCR text
+  // Look for product descriptions (e.g., "Bourbon", "IPA", "Cabernet")
+  // Try to extract a product type description from the text (heuristic: look for common patterns)
+  const productTypePattern = /(?:^|\s)((?:kentucky\s+)?(?:straight\s+)?(?:bourbon|whiskey|whisky|vodka|gin|rum|tequila|wine|beer|ale|lager|ipa|stout|porter|cabernet|merlot|chardonnay|pinot|sauvignon)[^\n]*?)(?:\n|$)/i;
+  const foundProduct = ocrText.match(productTypePattern);
+
+  if (foundProduct && foundProduct[1]) {
+    const productDescription = foundProduct[1].trim();
+    const classification = classifyProductType(productDescription);
+
+    if (classification.category && classification.confidence >= 70) {
+      // We found and classified a product type
+      if (categoriesMatch(expectedCategory, classification.category)) {
+        return {
+          matched: true,
+          expected: expectedCategory,
+          found: `${productDescription} (${classification.category})`,
+          similarity: classification.confidence,
+        };
+      } else {
+        return {
+          matched: false,
+          expected: expectedCategory,
+          found: `${productDescription} (classified as: ${classification.category})`,
+          similarity: classification.confidence,
+          error: `Product type mismatch: Expected ${expectedCategory}, found ${classification.category}`,
+        };
+      }
+    }
+  }
+
+  // Fallback: classify the entire OCR text (less accurate but better than nothing)
+  const fallbackClassification = classifyProductType(ocrText);
+  if (fallbackClassification.category && fallbackClassification.confidence >= 60) {
+    if (categoriesMatch(expectedCategory, fallbackClassification.category)) {
+      return {
+        matched: true,
+        expected: expectedCategory,
+        found: `Classified as ${fallbackClassification.category} (confidence: ${fallbackClassification.confidence}%)`,
+        similarity: fallbackClassification.confidence,
+      };
+    } else {
+      return {
+        matched: false,
+        expected: expectedCategory,
+        found: `Classified as ${fallbackClassification.category}`,
+        similarity: fallbackClassification.confidence,
+        error: `Product type mismatch: Expected ${expectedCategory}, found ${fallbackClassification.category}`,
+      };
+    }
+  }
+
   return {
     matched: false,
-    expected: formValue,
+    expected: expectedCategory,
     found: match?.match || null,
     similarity: match?.score,
-    error: match
-      ? `Product type mismatch: Found "${match.match}" (${match.score}% similarity, threshold ${FUZZY_MATCH_THRESHOLD}%)`
-      : `Product type "${formValue}" not found on label`,
+    error: `Could not determine product type from label. Expected ${expectedCategory}.`,
   };
 }
 
@@ -181,8 +235,27 @@ export function verifyLabel(
     governmentWarning: verifyGovernmentWarning(ocrText),
   };
 
-  // Overall success if ALL fields matched
-  const success = Object.values(fields).every((field) => field.matched);
+  // Check if the label is missing too much critical information
+  // Critical fields: brandName, productType, alcoholContent
+  const criticalFieldsMissing = [
+    fields.brandName.found === null,
+    fields.productType.found === null,
+    fields.alcoholContent.found === null,
+  ].filter(Boolean).length;
+
+  // If 2 or more critical fields are missing, the image likely doesn't contain label information
+  if (criticalFieldsMissing >= 2) {
+    throw new Error('The uploaded image does not appear to contain the required label information. Please upload a clear photo of the complete alcohol label (front and back if applicable).');
+  }
+
+  // Overall success if all REQUIRED fields matched
+  // Note: Government warning is optional/informational per assignment requirements (bonus feature)
+  const success =
+    fields.brandName.matched &&
+    fields.productType.matched &&
+    fields.alcoholContent.matched &&
+    fields.netContents.matched;
+  // governmentWarning is checked but does not affect success
 
   return {
     success,

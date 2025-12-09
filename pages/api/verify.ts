@@ -2,8 +2,9 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import formidable, { File } from 'formidable';
 import fs from 'fs';
 import { verifyLabelWithVision } from '@/lib/visionExtraction';
-import { extractTextFromImage, extractTextFromMultipleImages } from '@/lib/ocr';
-import { verifyLabel } from '@/lib/verification';
+// OCR imports disabled - keeping OCR code for future use
+// import { extractTextFromImage, extractTextFromMultipleImages } from '@/lib/ocr';
+// import { verifyLabel } from '@/lib/verification';
 import { VerifyResponse } from '@/types';
 
 // Disable body parser to handle multipart/form-data
@@ -22,7 +23,7 @@ function parseForm(req: NextApiRequest): Promise<{
 }> {
   return new Promise((resolve, reject) => {
     const form = formidable({
-      maxFileSize: 10 * 1024 * 1024, // 10MB max file size
+      maxFileSize: 1 * 1024 * 1024, // 1MB max file size
       keepExtensions: true,
     });
 
@@ -136,73 +137,28 @@ export default async function handler(
       mimeType: file.mimetype || 'image/jpeg',
     }));
 
-    let verificationResult;
-    let usedMethod: 'vision' | 'ocr' = 'vision';
-
-    try {
-      // Try Claude Vision API first (supports multiple images)
-      console.log(`Attempting verification with Claude Vision API (${imageBuffers.length} image${imageBuffers.length > 1 ? 's' : ''})...`);
-      verificationResult = await verifyLabelWithVision(
-        {
-          brandName,
-          productType,
-          alcoholContent,
-          netContents,
-        },
-        imagesWithTypes
-      );
-      console.log('✓ Vision API verification completed successfully');
-    } catch (visionError) {
-      // Fallback to Tesseract OCR if Vision API fails
-      console.warn('Vision API failed, falling back to OCR:', visionError instanceof Error ? visionError.message : visionError);
-      usedMethod = 'ocr';
-
-      try {
-        console.log(`Starting OCR-based label verification (${imageBuffers.length} image${imageBuffers.length > 1 ? 's' : ''})...`);
-
-        let ocrText: string;
-
-        if (imageBuffers.length === 1) {
-          // Single image - use existing function
-          const ocrResult = await extractTextFromImage(imageBuffers[0]);
-          ocrText = ocrResult.text;
-          console.log('OCR completed. Confidence:', ocrResult.confidence);
-        } else {
-          // Multiple images - use new function
-          const multiOcrResult = await extractTextFromMultipleImages(imageBuffers);
-          ocrText = multiOcrResult.combinedText;
-          console.log(`OCR completed for ${multiOcrResult.images.length} images. Average confidence:`, multiOcrResult.averageConfidence);
-        }
-
-        if (!ocrText || ocrText.trim().length === 0) {
-          throw new Error('Could not read text from the label images');
-        }
-
-        verificationResult = verifyLabel(
-          {
-            brandName,
-            productType,
-            alcoholContent,
-            netContents,
-          },
-          ocrText
-        );
-        console.log('✓ OCR verification completed successfully');
-      } catch (ocrError) {
-        console.error('Both Vision API and OCR failed:', ocrError);
-        throw new Error('Failed to process label images. Please try again with clearer images.');
-      }
-    }
+    // Use Claude Vision API for verification (OCR fallback disabled)
+    console.log(`Attempting verification with Claude Vision API (${imageBuffers.length} image${imageBuffers.length > 1 ? 's' : ''})...`);
+    const verificationResult = await verifyLabelWithVision(
+      {
+        brandName,
+        productType,
+        alcoholContent,
+        netContents,
+      },
+      imagesWithTypes
+    );
+    console.log('✓ Vision API verification completed successfully');
 
     // Clean up all uploaded files
     imageArray.forEach(file => fs.unlinkSync(file.filepath));
 
-    // Return results with method used and image count
-    console.log(`Verification completed using: ${usedMethod} (${imageBuffers.length} image${imageBuffers.length > 1 ? 's' : ''})`);
+    // Return results with image count
+    console.log(`Verification completed using Vision API (${imageBuffers.length} image${imageBuffers.length > 1 ? 's' : ''})`);
     return res.status(200).json({
       success: verificationResult.success,
       fields: verificationResult.fields,
-      method: usedMethod,
+      method: 'vision',
       imageCount: imageBuffers.length,
     });
   } catch (error) {

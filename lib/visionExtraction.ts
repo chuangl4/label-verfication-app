@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { FormData, VerificationResult, FieldResult } from '@/types';
+import { TTBCategory, categoriesMatch } from './productTypeClassifier';
 
 /**
  * Extract label information using Claude Vision API
@@ -11,6 +12,7 @@ export async function extractLabelDataWithVision(
 ): Promise<{
   brandName: string | null;
   productType: string | null;
+  ttbCategory: TTBCategory | null;
   alcoholContent: number | null;
   netContents: string | null;
   hasGovernmentWarning: boolean;
@@ -48,11 +50,17 @@ export async function extractLabelDataWithVision(
 
 {
   "brandName": "the brand name on the label",
-  "productType": "the product class/type (e.g., 'Red Wine', 'Kentucky Straight Bourbon Whiskey')",
+  "productType": "the specific product name/description (e.g., 'Red Wine', 'Kentucky Straight Bourbon Whiskey', 'IPA')",
+  "ttbCategory": "classify the product into exactly ONE of these TTB categories: 'Wine', 'Distilled Spirits', or 'Malt Beverage'",
   "alcoholContent": the alcohol percentage as a number (e.g., 13 for 13%),
   "netContents": "the volume/net contents (e.g., '750 ML', '12 fl oz')",
   "hasGovernmentWarning": true or false (whether a government warning is present)
 }
+
+Classification guidelines:
+- "Wine": All wines including red, white, rosé, sparkling, champagne, port, sherry, sake, mead
+- "Distilled Spirits": Whiskey, bourbon, vodka, gin, rum, tequila, brandy, cognac, liqueurs
+- "Malt Beverage": Beer, ale, lager, IPA, stout, cider, hard seltzer, malt liquor
 
 If any field cannot be found across ANY of the label images, use null for that field (except hasGovernmentWarning which should be false).
 Return ONLY the JSON object, no additional text.`,
@@ -78,22 +86,46 @@ Return ONLY the JSON object, no additional text.`,
     // Extract JSON from response (in case Claude adds any extra text)
     const jsonMatch = responseText.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
-      throw new Error('No JSON found in Claude response');
+      console.error('No JSON found in Claude response. Response text:', responseText);
+      throw new Error('The uploaded image does not appear to contain the required label information. Please upload a clear photo of the complete alcohol label (front and back if applicable).');
     }
 
     const extractedData = JSON.parse(jsonMatch[0]);
 
-    return {
+    const result = {
       brandName: extractedData.brandName || null,
       productType: extractedData.productType || null,
+      ttbCategory: extractedData.ttbCategory || null,
       alcoholContent: extractedData.alcoholContent ? Number(extractedData.alcoholContent) : null,
       netContents: extractedData.netContents || null,
       hasGovernmentWarning: Boolean(extractedData.hasGovernmentWarning),
     };
+
+    // Check if the image was completely unreadable (all critical fields are null)
+    const hasCriticalData = result.brandName || result.productType || result.alcoholContent !== null;
+
+    if (!hasCriticalData) {
+      throw new Error('Could not read text from the label image. Please try a clearer image.');
+    }
+
+    return result;
   } catch (error) {
     console.error('Failed to parse Claude vision response:', error);
     console.error('Response text:', responseText);
-    throw new Error('Failed to parse vision API response');
+
+    // Re-throw specific user-friendly error messages
+    if (error instanceof Error) {
+      if (error.message.includes('Could not read text') ||
+          error.message.includes('does not appear to contain the required label information')) {
+        throw error;
+      }
+      // JSON parsing errors
+      if (error instanceof SyntaxError) {
+        throw new Error('The uploaded image does not appear to contain the required label information. Please upload a clear photo of the complete alcohol label (front and back if applicable).');
+      }
+    }
+
+    throw new Error('The uploaded image does not appear to contain the required label information. Please upload a clear photo of the complete alcohol label (front and back if applicable).');
   }
 }
 
@@ -109,15 +141,28 @@ export async function verifyLabelWithVision(
   // Extract data from all label images using vision
   const extractedData = await extractLabelDataWithVision(images);
 
+  // Check if the label is missing too much critical information
+  // Critical fields: brandName, productType, alcoholContent
+  const criticalFieldsMissing = [
+    !extractedData.brandName,
+    !extractedData.productType,
+    extractedData.alcoholContent === null,
+  ].filter(Boolean).length;
+
+  // If 2 or more critical fields are missing, the image likely doesn't contain label information
+  if (criticalFieldsMissing >= 2) {
+    throw new Error('The uploaded image does not appear to contain the required label information. Please upload a clear photo of the complete alcohol label (front and back if applicable).');
+  }
+
   // Verify each field
   const fields = {
     brandName: verifyBrandName(
       formData.brandName,
       extractedData.brandName
     ),
-    productType: verifyField(
-      'Product type',
+    productType: verifyTTBCategory(
       formData.productType,
+      extractedData.ttbCategory,
       extractedData.productType
     ),
     alcoholContent: verifyAlcoholField(
@@ -131,8 +176,14 @@ export async function verifyLabelWithVision(
     governmentWarning: verifyWarningField(extractedData.hasGovernmentWarning),
   };
 
-  // Overall success if ALL fields matched
-  const success = Object.values(fields).every((field) => field.matched);
+  // Overall success if all REQUIRED fields matched
+  // Note: Government warning is optional/informational per assignment requirements (bonus feature)
+  const success =
+    fields.brandName.matched &&
+    fields.productType.matched &&
+    fields.alcoholContent.matched &&
+    fields.netContents.matched;
+  // governmentWarning is checked but does not affect success
 
   return { success, fields };
 }
@@ -150,7 +201,7 @@ function verifyBrandName(
       matched: false,
       expected,
       found: null,
-      error: 'Brand name not found on label',
+      error: 'Could not read brand name from label. Please upload a clearer image or add a second image showing this information (max 1MB per image).',
     };
   }
 
@@ -191,7 +242,7 @@ function verifyField(
       matched: false,
       expected,
       found: null,
-      error: `${fieldName} not found on label`,
+      error: `Could not read ${fieldName} from label. Please upload a clearer image or add a second image showing this information (max 1MB per image).`,
     };
   }
 
@@ -257,6 +308,42 @@ function verifyField(
 }
 
 /**
+ * Verify TTB category classification
+ * Compares the expected TTB category with the classified category from the label
+ */
+function verifyTTBCategory(
+  expectedCategory: string,
+  foundCategory: TTBCategory | null,
+  productTypeOnLabel: string | null
+): FieldResult {
+  if (!foundCategory) {
+    return {
+      matched: false,
+      expected: expectedCategory,
+      found: productTypeOnLabel,
+      error: 'Could not read or classify product type from label. Please upload a clearer image or add a second image showing this information (max 1MB per image).',
+    };
+  }
+
+  // Compare TTB categories
+  if (categoriesMatch(expectedCategory, foundCategory)) {
+    return {
+      matched: true,
+      expected: expectedCategory,
+      found: productTypeOnLabel ? `${productTypeOnLabel} (${foundCategory})` : foundCategory,
+      similarity: 100,
+    };
+  }
+
+  return {
+    matched: false,
+    expected: expectedCategory,
+    found: productTypeOnLabel ? `${productTypeOnLabel} (classified as: ${foundCategory})` : foundCategory,
+    error: `Product type mismatch: Expected ${expectedCategory}, but label shows ${foundCategory}`,
+  };
+}
+
+/**
  * Verify alcohol content with tolerance
  */
 function verifyAlcoholField(
@@ -268,7 +355,7 @@ function verifyAlcoholField(
       matched: false,
       expected: `${expected}%`,
       found: null,
-      error: `Alcohol content ${expected}% not found on label`,
+      error: `Could not read alcohol content from label. Please upload a clearer image or add a second image showing this information (max 1MB per image).`,
     };
   }
 
@@ -305,7 +392,7 @@ function verifyNetContentsField(
       matched: false,
       expected,
       found: null,
-      error: 'Net contents not found on label',
+      error: 'Could not read net contents from label. Please upload a clearer image or add a second image showing this information (max 1MB per image).',
     };
   }
 

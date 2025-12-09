@@ -153,23 +153,29 @@ export default function VerificationForm() {
         {/* Product Type */}
         <div>
           <label htmlFor="productType" className="block text-sm font-semibold text-gray-800 mb-2">
-            Product Class/Type <span className="text-red-500">*</span>
+            TTB Product Category <span className="text-red-500">*</span>
           </label>
-          <input
+          <select
             id="productType"
-            type="text"
-            {...register('productType', { required: 'Product type is required' })}
+            {...register('productType', { required: 'Product category is required' })}
             className={`
               w-full px-4 py-3 border-2 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all
-              text-gray-900 placeholder-gray-400
+              text-gray-900 bg-white cursor-pointer
               ${errors.productType || apiErrors?.fields?.productType?.error
                 ? 'border-red-400 bg-red-50/50'
-                : 'border-gray-200 bg-white hover:border-gray-300'
+                : 'border-gray-200 hover:border-gray-300'
               }
             `}
-            placeholder="e.g., Kentucky Straight Bourbon Whiskey"
             disabled={isSubmitting}
-          />
+          >
+            <option value="">Select a category...</option>
+            <option value="Wine">Wine</option>
+            <option value="Distilled Spirits">Distilled Spirits</option>
+            <option value="Malt Beverage">Malt Beverage</option>
+          </select>
+          <p className="text-sm text-gray-500 mt-1">
+            Select the TTB classification for this product
+          </p>
           <FieldError message={errors.productType?.message || apiErrors?.fields?.productType?.error} />
         </div>
 
@@ -254,16 +260,17 @@ export default function VerificationForm() {
             Label Images <span className="text-red-500">*</span>
           </h2>
           <p className="text-sm text-gray-500 mt-1">
-            Upload clear photos of your label (front and back if applicable, up to 2 images)
+            Upload clear photos of your label (front and back if applicable, up to 2 images, max 1MB each)
           </p>
         </div>
 
-        {selectedImages.length === 0 ? (
+{selectedImages.length === 0 ? (
           <ImageUpload onImageSelected={setSelectedImages} disabled={isSubmitting} />
         ) : (
           <MultiImagePreview
             files={selectedImages}
             onRemove={(index) => setSelectedImages(prev => prev.filter((_, i) => i !== index))}
+            onAddMore={(newFiles) => setSelectedImages(prev => [...prev, ...newFiles])}
           />
         )}
       </div>

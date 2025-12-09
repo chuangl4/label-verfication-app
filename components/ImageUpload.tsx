@@ -65,7 +65,7 @@ export default function ImageUpload({ onImageSelected, disabled }: ImageUploadPr
             <p className="text-gray-600">
               <span className="font-medium text-blue-600">Click to upload</span> or drag and drop
             </p>
-            <p className="text-sm text-gray-500">Up to 2 images (JPEG, PNG, or WebP, max 10MB each)</p>
+            <p className="text-sm text-gray-500">Up to 2 images (JPEG, PNG, or WebP, max 1MB each)</p>
           </>
         )}
       </div>
