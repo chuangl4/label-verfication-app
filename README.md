@@ -42,6 +42,13 @@ An AI-powered web application that simulates the TTB (Alcohol and Tobacco Tax an
 - The deployed app requires a valid Anthropic API key configured on the server
 - If you encounter errors, the API key may need to be renewed or configured
 
+**Testing with Sample Images**:
+- Sample test images are available in the `test-images/` directory for trying the application:
+  - **Multi-image labels**: Use `case-1-front.jpeg` + `case-1-back.jpeg` or `case-3-front.jpeg` + `case-3-back.jpeg` to test front and back label processing
+  - **Image quality comparison**: Compare `case-2.jpeg` (clear) vs `case-2-blurred.jpg` (blurred) to see Vision API performance
+  - **Complex text layouts**: Try `case-2.jpeg` which contains both horizontal and vertical text
+  - **Beer labels**: Use `case-4.jpeg` for testing beer label verification
+
 ## 🌟 Features
 
 - **Smart Form Input**: Easy-to-use form for entering product information (brand name, product type, alcohol content, net contents)
@@ -211,17 +218,43 @@ Claude 3.5 Haiku Vision API
 - Multi-image support combines front + back labels for complete data
 - Structured JSON response ready for verification
 
-### 2. Field Verification
+### 2. TTB Category Classification
+
+The Vision API intelligently classifies products into one of three TTB (Alcohol and Tobacco Tax and Trade Bureau) categories:
+
+**How Classification Works:**
+```typescript
+// Vision API receives classification guidelines in the prompt:
+"Wine": All wines including red, white, rosé, sparkling, champagne, port, sherry, sake, mead
+"Distilled Spirits": Whiskey, bourbon, vodka, gin, rum, tequila, brandy, cognac, liqueurs
+"Malt Beverage": Beer, ale, lager, IPA, stout, cider, hard seltzer, malt liquor
+```
+
+**Examples of Label Text → TTB Category:**
+- "Kentucky Straight Bourbon Whiskey" → **Distilled Spirits**
+- "Red Table Wine" → **Wine**
+- "India Pale Ale" → **Malt Beverage**
+- "Chardonnay 2019" → **Wine**
+- "Premium Vodka" → **Distilled Spirits**
+
+**Why This Matters:**
+- Users select a broad TTB category in the form (Wine, Distilled Spirits, or Malt Beverage)
+- Vision API reads the specific product description on the label (e.g., "Kentucky Straight Bourbon Whiskey")
+- API classifies that description into the appropriate TTB category
+- Verification compares the user's category selection against the API's classification
+- This allows flexible matching: user selects "Distilled Spirits", label can say "Bourbon", "Whiskey", "Vodka", etc.
+
+### 3. Field Verification
 ```typescript
 // lib/visionExtraction.ts - verifyLabelWithVision()
 - Brand Name: Exact and fuzzy comparison with extracted data
-- Product Type: Context-aware matching against TTB categories
+- Product Type: TTB category comparison (user's selection vs Vision API classification)
 - Alcohol Content: Numerical comparison (±0.5% tolerance)
 - Net Contents: Volume comparison with unit normalization
 - Government Warning: Boolean presence check
 ```
 
-### 3. Verification Flow
+### 4. Verification Flow
 ```
 User submits form + images
          ↓
